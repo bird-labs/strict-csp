@@ -134,16 +134,27 @@ export class StrictCsp {
    * Replaces all sourced scripts with a single inline script that can be hashed
    */
   refactorSourcedScriptsForHashBasedCsp(): void {
-    const srcList = this.$(StrictCsp.SOURCED_SCRIPT_SELECTOR)
+    const scriptTagList = this.$(StrictCsp.SOURCED_SCRIPT_SELECTOR)
       .map((i, script) => {
-        const src = this.$(script).attr('src');
         this.$(script).remove();
-        return src;
+        return script;
       })
-      .filter((src) => src !== null)
+      .filter((script) => this.$(script).attr("src") !== null)
       .get();
 
-    const loaderScript = StrictCsp.createLoaderScript(srcList);
+    const scripts = scriptTagList.map(scriptTag => {
+      const script = {}
+      const scriptElementProperties = ['type', 'src', 'event', 'charset', 'async', 'defer', 'crossOrigin', 'text', 'fetchPriority', 'noModule', 'referrerPolicy']
+      scriptElementProperties.forEach((propertyName) => {
+        const scriptPropertyValue = this.$(scriptTag).attr(propertyName)
+        if (scriptPropertyValue !== null) {
+          script[propertyName] = scriptPropertyValue
+        }
+      })
+      return script
+    })
+
+    const loaderScript = StrictCsp.createLoaderScript(scripts);
     if (!loaderScript) {
       return;
     }
@@ -169,17 +180,18 @@ export class StrictCsp {
    * Returns JS code for dynamically loading sourced (external) scripts.
    * @param srcList A list of paths for scripts that should be loaded.
    */
-  static createLoaderScript(srcList: string[]): string | undefined {
-    if (!srcList.length) {
+  static createLoaderScript(scripts: ScriptTag[]): string | undefined {
+  //static createLoaderScript(scriptTagList: HTMLScriptElement[]): string | undefined {
+    if (!scripts.length) {
       return undefined;
     }
-    const srcListFormatted = srcList.map((s) => `'${s}'`).join();
     return `
-    var scripts = [${srcListFormatted}];
-    scripts.forEach(function(scriptUrl) {
+    var scripts = ${JSON.stringify(scripts)};
+    scripts.forEach(function(script) {
       var s = document.createElement('script');
-      s.src = scriptUrl;
-      s.async = false; // preserve execution order.
+      for (var propertyName in script) {
+        s[propertyName] = script[propertyName]
+      }
       document.body.appendChild(s);
     });\n    `;
   }
@@ -196,4 +208,18 @@ export class StrictCsp {
       .digest('base64');
     return `'${StrictCsp.HASH_FUNCTION}-${hash}'`;
   }
+}
+
+type ScriptTag = {
+  type?: string
+  src?: string
+  event?: string
+  charset?: string
+  async?: string
+  defer?: string
+  crossOrigin?: string
+  text?: string
+  fetchPriority?: string
+  noModule?: string
+  referrerPolicy?: string
 }
