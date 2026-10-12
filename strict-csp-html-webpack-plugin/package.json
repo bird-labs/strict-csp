@@ -9,7 +9,7 @@
     "directory": "strict-csp-html-webpack-plugin"
   },
   "dependencies": {
-    "strict-csp": "^1.0.0-beta.1"
+    "strict-csp": "^1.0.4"
   },
   "devDependencies": {},
   "scripts": {
